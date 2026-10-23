@@ -1,0 +1,30 @@
+name: sync-machine-os
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download machine-os blob from quay.io
+        run: |
+          curl -fL --retry 3 -o blob.bin \
+            "https://quay.io/v2/podman/machine-os/blobs/sha256:feea807ef1364ca9d9aa6c9afae8c48c7ac8b80a0bd1d0f2426ee298625acd5e"
+          echo "feea807ef1364ca9d9aa6c9afae8c48c7ac8b80a0bd1d0f2426ee298625acd5e  blob.bin" | sha256sum -c -
+
+      - name: Split into chunks and push back to repo
+        run: |
+          split -b 90m -d blob.bin chunk_
+          rm blob.bin
+          git config user.name "sync-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add chunk_*
+          git commit -m "machine-os blob chunks"
+          git push
